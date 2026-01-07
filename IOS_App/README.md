@@ -1,6 +1,6 @@
 # EtherWorld iOS
 
-A modern iOS app for reading curated tech articles with offline support.
+Hi, This is a modern iOS app for reading curated tech articles with offline support.
 
 ## Features
 - Browse articles in a beautiful feed
