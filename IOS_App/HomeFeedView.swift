@@ -2,6 +2,9 @@ import SwiftUI
 
 struct HomeFeedView: View {
     @StateObject private var viewModel = ArticleViewModel()
+    @State private var showingDiscover = false
+    @State private var showingSettings = false
+    @AppStorage("notificationsEnabled") private var notificationsEnabled = false
     
     var body: some View {
         NavigationStack {
@@ -35,7 +38,35 @@ struct HomeFeedView: View {
                 }
             }
             .navigationTitle("EtherWorld")
-            .task { await viewModel.load() }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showingDiscover = true
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingDiscover) {
+                DiscoverView()
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
+            .task {
+                await viewModel.load()
+                // Check for new articles and send notification if enabled
+                if notificationsEnabled {
+                    NotificationManager.shared.checkForNewArticles(articles: viewModel.articles)
+                }
+            }
             .navigationDestination(for: Article.self) { article in
                 ArticleDetailView(article: article)
             }

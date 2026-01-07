@@ -18,7 +18,11 @@ struct GhostArticleService: ArticleService {
     }
     
     func fetchArticles() async throws -> [Article] {
-        let urlString = "\(baseURL)/ghost/api/v3/content/posts/?key=\(apiKey)&include=authors,tags&fields=id,title,html,feature_image,published_at,reading_time"
+        return try await fetchArticles(page: 1, limit: 50)
+    }
+    
+    func fetchArticles(page: Int, limit: Int = 15) async throws -> [Article] {
+        let urlString = "\(baseURL)/ghost/api/v3/content/posts/?key=\(apiKey)&include=authors,tags&fields=id,title,html,feature_image,published_at,reading_time&page=\(page)&limit=\(limit)"
         guard let url = URL(string: urlString) else {
             throw ServiceError.invalidURL
         }
