@@ -1,10 +1,2 @@
-import SwiftUI
+// Removed duplicate @main app entry point.
 
-@main
-struct EtherworldApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-    }
-}

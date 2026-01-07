@@ -4,7 +4,10 @@ struct MockArticleService: ArticleService {
     func fetchArticles() async throws -> [Article] {
         // Simulate network delay
         try await Task.sleep(nanoseconds: 1_000_000_000)
-        
+        return getMockArticles()
+    }
+    
+    func getMockArticles() -> [Article] {
         return [
             Article(
                 id: "1",
@@ -14,6 +17,8 @@ struct MockArticleService: ArticleService {
                 publishedAt: Date(timeIntervalSinceNow: -86400),
                 url: "https://etherworld.co/web3-future",
                 author: "Alice Chen",
+                authorSlug: "alice-chen",
+                authorProfileImage: nil,
                 imageURL: URL(string: "https://via.placeholder.com/800x600?text=Web3+Future"),
                 tags: ["Web3", "Blockchain", "Decentralization"],
                 readingTimeMinutes: 8
@@ -26,6 +31,8 @@ struct MockArticleService: ArticleService {
                 publishedAt: Date(timeIntervalSinceNow: -172800),
                 url: "https://etherworld.co/smart-contracts",
                 author: "Bob Kumar",
+                authorSlug: "bob-kumar",
+                authorProfileImage: nil,
                 imageURL: URL(string: "https://via.placeholder.com/800x600?text=Smart+Contracts"),
                 tags: ["Ethereum", "SmartContracts", "DeFi"],
                 readingTimeMinutes: 12
