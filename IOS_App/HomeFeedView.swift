@@ -1,17 +1,20 @@
 import SwiftUI
+import Combine
 
 struct HomeFeedView: View {
-    @StateObject private var viewModel = ArticleViewModel()
+    @EnvironmentObject var viewModel: ArticleViewModel
+    @StateObject private var notificationManager = NotificationManager.shared
     @State private var showingDiscover = false
     @State private var showingSettings = false
+    @State private var navigationPath = NavigationPath()
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
     
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             Group {
-                if viewModel.isLoading {
+                if viewModel.isLoading && viewModel.articles.isEmpty {
                     ProgressView("Loading articles…")
-                } else if let error = viewModel.errorMessage {
+                } else if let error = viewModel.errorMessage, viewModel.articles.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.largeTitle)
@@ -35,6 +38,9 @@ struct HomeFeedView: View {
                         }
                     }
                     .listStyle(.insetGrouped)
+                    .refreshable {
+                        await viewModel.load()
+                    }
                 }
             }
             .navigationTitle("EtherWorld")
@@ -61,15 +67,33 @@ struct HomeFeedView: View {
                 SettingsView()
             }
             .task {
-                await viewModel.load()
                 // Check for new articles and send notification if enabled
                 if notificationsEnabled {
                     NotificationManager.shared.checkForNewArticles(articles: viewModel.articles)
                 }
             }
+            .onReceive(notificationManager.$selectedArticleId.compactMap { $0 }) { articleId in
+                Task { await handleDeepLink(articleId: articleId) }
+            }
             .navigationDestination(for: Article.self) { article in
                 ArticleDetailView(article: article)
             }
+        }
+    }
+
+    private func handleDeepLink(articleId: String) async {
+        // Ensure articles are loaded
+        if viewModel.articles.isEmpty {
+            await viewModel.load()
+        }
+        if let article = viewModel.articles.first(where: { $0.id == articleId }) {
+            navigationPath.append(article)
+            return
+        }
+        // Attempt a refresh if not found
+        await viewModel.load()
+        if let article = viewModel.articles.first(where: { $0.id == articleId }) {
+            navigationPath.append(article)
         }
     }
 }

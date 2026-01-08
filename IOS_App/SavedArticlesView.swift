@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SavedArticlesView: View {
-    @StateObject private var viewModel = ArticleViewModel()
+    @EnvironmentObject var viewModel: ArticleViewModel
     
     var body: some View {
         NavigationStack {
@@ -24,22 +24,17 @@ struct SavedArticlesView: View {
                         NavigationLink(destination: ArticleDetailView(article: article)) {
                             HStack(alignment: .top, spacing: 12) {
                                 if let imageURL = article.imageURL {
-                                    AsyncImage(url: imageURL) { phase in
-                                        switch phase {
-                                        case .success(let image):
-                                            image
-                                                .resizable()
-                                                .scaledToFill()
-                                                .frame(width: 80, height: 80)
-                                                .clipped()
-                                                .cornerRadius(8)
-                                        case .empty, .failure:
-                                            Color.gray.opacity(0.2)
-                                                .frame(width: 80, height: 80)
-                                                .cornerRadius(8)
-                                        @unknown default:
-                                            EmptyView()
-                                        }
+                                    CachedAsyncImage(url: imageURL) { image in
+                                        image
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 80, height: 80)
+                                            .clipped()
+                                            .cornerRadius(8)
+                                    } placeholder: {
+                                        Color.gray.opacity(0.2)
+                                            .frame(width: 80, height: 80)
+                                            .cornerRadius(8)
                                     }
                                 }
                                 
@@ -81,11 +76,6 @@ struct SavedArticlesView: View {
                 }
             }
             .navigationTitle("Saved")
-        }
-        .onAppear {
-            Task {
-                await viewModel.load()
-            }
         }
     }
 }

@@ -29,23 +29,15 @@ struct AuthorProfileView: View {
                 VStack(spacing: 0) {
                     // Cover Image
                     if let coverImage = author.coverImage {
-                        AsyncImage(url: coverImage) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(height: 200)
-                                    .clipped()
-                            case .empty:
-                                Color.gray.opacity(0.2)
-                                    .frame(height: 200)
-                            case .failure:
-                                Color.gray.opacity(0.2)
-                                    .frame(height: 200)
-                            @unknown default:
-                                EmptyView()
-                            }
+                        CachedAsyncImage(url: coverImage) { image in
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(height: 200)
+                                .clipped()
+                        } placeholder: {
+                            Color.gray.opacity(0.2)
+                                .frame(height: 200)
                         }
                     }
                     
@@ -53,28 +45,18 @@ struct AuthorProfileView: View {
                     VStack(spacing: 16) {
                         // Profile Image
                         if let profileImage = author.profileImage {
-                            AsyncImage(url: profileImage) { phase in
-                                switch phase {
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 120, height: 120)
-                                        .clipShape(Circle())
-                                        .overlay(Circle().stroke(Color.white, lineWidth: 4))
-                                case .empty:
-                                    Circle()
-                                        .fill(Color.gray.opacity(0.2))
-                                        .frame(width: 120, height: 120)
-                                        .overlay(Circle().stroke(Color.white, lineWidth: 4))
-                                case .failure:
-                                    Circle()
-                                        .fill(Color.gray.opacity(0.2))
-                                        .frame(width: 120, height: 120)
-                                        .overlay(Circle().stroke(Color.white, lineWidth: 4))
-                                @unknown default:
-                                    EmptyView()
-                                }
+                            CachedAsyncImage(url: profileImage) { image in
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 120, height: 120)
+                                    .clipShape(Circle())
+                                    .overlay(Circle().stroke(Color.white, lineWidth: 4))
+                            } placeholder: {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.2))
+                                    .frame(width: 120, height: 120)
+                                    .overlay(Circle().stroke(Color.white, lineWidth: 4))
                             }
                             .offset(y: -60)
                             .padding(.bottom, -60)
@@ -173,26 +155,17 @@ struct AuthorProfileView: View {
                                 NavigationLink(destination: ArticleDetailView(article: article)) {
                                     VStack(alignment: .leading, spacing: 8) {
                                         if let imageURL = article.imageURL {
-                                            AsyncImage(url: imageURL) { phase in
-                                                switch phase {
-                                                case .success(let image):
-                                                    image
-                                                        .resizable()
-                                                        .scaledToFill()
-                                                        .frame(height: 200)
-                                                        .clipped()
-                                                        .cornerRadius(8)
-                                                case .empty:
-                                                    Color.gray.opacity(0.2)
-                                                        .frame(height: 200)
-                                                        .cornerRadius(8)
-                                                case .failure:
-                                                    Color.gray.opacity(0.2)
-                                                        .frame(height: 200)
-                                                        .cornerRadius(8)
-                                                @unknown default:
-                                                    EmptyView()
-                                                }
+                                            CachedAsyncImage(url: imageURL) { image in
+                                                image
+                                                    .resizable()
+                                                    .scaledToFill()
+                                                    .frame(height: 200)
+                                                    .clipped()
+                                                    .cornerRadius(8)
+                                            } placeholder: {
+                                                Color.gray.opacity(0.2)
+                                                    .frame(height: 200)
+                                                    .cornerRadius(8)
                                             }
                                         }
                                         

@@ -4,16 +4,19 @@ import SwiftUI
 import Combine
 
 @MainActor
-class NotificationManager: ObservableObject {
+class NotificationManager: NSObject, ObservableObject {
     static let shared = NotificationManager()
     
     @Published var isAuthorized = false
+    @Published var selectedArticleId: String?
     private var lastArticleId: String {
         get { UserDefaults.standard.string(forKey: "lastArticleId") ?? "" }
         set { UserDefaults.standard.set(newValue, forKey: "lastArticleId") }
     }
     
-    private init() {
+    private override init() {
+        super.init()
+        UNUserNotificationCenter.current().delegate = self
         checkAuthorizationStatus()
     }
     
@@ -29,6 +32,9 @@ class NotificationManager: ObservableObject {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
             DispatchQueue.main.async {
                 self.isAuthorized = granted
+                if granted {
+                    UNUserNotificationCenter.current().delegate = self
+                }
                 completion(granted)
             }
         }
@@ -88,5 +94,14 @@ class NotificationManager: ObservableObject {
     
     func cancelAllNotifications() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+    }
+}
+
+extension NotificationManager: UNUserNotificationCenterDelegate {
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        if let articleId = response.notification.request.content.userInfo["articleId"] as? String {
+            selectedArticleId = articleId
+        }
+        completionHandler()
     }
 }

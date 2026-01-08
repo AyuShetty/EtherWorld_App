@@ -7,9 +7,12 @@
 
 import SwiftUI
 import SwiftData
+import BackgroundTasks
 
 @main
 struct IOS_AppApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
@@ -23,10 +26,30 @@ struct IOS_AppApp: App {
         }
     }()
 
+    init() {
+        // Register background refresh task
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: BackgroundRefreshManager.taskIdentifier, using: nil) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            BackgroundRefreshManager.handle(task: refreshTask)
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
         .modelContainer(sharedModelContainer)
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                // Schedule next refresh when app becomes active
+                BackgroundRefreshManager.scheduleNextRefresh(hoursFromNow: 6)
+            }
+        }
+        .backgroundTask(.appRefresh(BackgroundRefreshManager.taskIdentifier)) {
+            await BackgroundRefreshManager.performRefresh()
+        }
     }
 }

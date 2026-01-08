@@ -1,19 +1,22 @@
 import SwiftUI
 
 struct DiscoverView: View {
-    @StateObject private var viewModel = ArticleViewModel()
+    @StateObject private var discoverViewModel = ArticleViewModel()
     @State private var searchText = ""
+    @State private var debouncedSearchText = ""
+    @State private var debounceWorkItem: DispatchWorkItem?
     @State private var selectedTags: Set<String> = []
     @State private var sortOption: SortOption = .newest
     @State private var displayLimit: Int = 20
     @Environment(\.dismiss) private var dismiss
+    @State private var allTagsCache: [String] = []
 
     private let ignoredTags: Set<String> = ["ew-promoted-top", "ew-promoted-bottom", "#ew-promoted-top", "#ew-promoted-bottom"]
     
     var allTags: [String] {
         // Count tag occurrences across all articles
         var tagCounts: [String: Int] = [:]
-        for article in viewModel.articles {
+        for article in discoverViewModel.articles {
             for tag in cleanTags(for: article) {
                 tagCounts[tag, default: 0] += 1
             }
@@ -30,14 +33,14 @@ struct DiscoverView: View {
     }
 
     var matchingAuthors: [AuthorResult] {
-        guard !searchText.isEmpty, searchText.count >= 2 else { return [] }
+        guard !debouncedSearchText.isEmpty, debouncedSearchText.count >= 2 else { return [] }
         
-        let searchWord = searchText.split(separator: " ").first.map(String.init) ?? searchText
+        let searchWord = debouncedSearchText.split(separator: " ").first.map(String.init) ?? debouncedSearchText
         
         var seen = Set<String>()
         var authors: [AuthorResult] = []
         
-        for article in viewModel.articles {
+        for article in discoverViewModel.articles {
             guard let name = article.author, let slug = article.authorSlug else { continue }
             if seen.contains(slug) { continue }
             
@@ -56,9 +59,9 @@ struct DiscoverView: View {
     }
     
     var filteredArticles: [Article] {
-        var result = viewModel.articles
+        var result = discoverViewModel.articles
         
-        if !searchText.isEmpty {
+        if !debouncedSearchText.isEmpty {
             result = result.filter { article in
                 matchesSearch(article)
             }
@@ -110,7 +113,7 @@ struct DiscoverView: View {
     }
 
     private func matchesSearch(_ article: Article) -> Bool {
-        let searchWord = searchText.split(separator: " ").first.map(String.init) ?? searchText
+        let searchWord = debouncedSearchText.split(separator: " ").first.map(String.init) ?? debouncedSearchText
         guard !searchWord.isEmpty else { return true }
         
         let contentMatches = article.contentHTML.localizedCaseInsensitiveContains(searchWord)
@@ -122,8 +125,8 @@ struct DiscoverView: View {
     }
 
     private func relevanceScore(for article: Article) -> Int {
-        guard !searchText.isEmpty else { return 0 }
-        let searchWord = searchText.split(separator: " ").first.map(String.init) ?? searchText
+        guard !debouncedSearchText.isEmpty else { return 0 }
+        let searchWord = debouncedSearchText.split(separator: " ").first.map(String.init) ?? debouncedSearchText
         guard !searchWord.isEmpty else { return 0 }
         
         var score = 0
@@ -150,6 +153,22 @@ struct DiscoverView: View {
             return !ignoredTags.contains(tagWithoutHash) && !ignoredTags.contains(normalizedTag)
         }
     }
+
+    private func recomputeAllTags() {
+        var tagCounts: [String: Int] = [:]
+        for article in discoverViewModel.articles {
+            for tag in cleanTags(for: article) {
+                tagCounts[tag, default: 0] += 1
+            }
+        }
+        let sorted = tagCounts.keys.sorted { lhs, rhs in
+            let lCount = tagCounts[lhs] ?? 0
+            let rCount = tagCounts[rhs] ?? 0
+            if lCount != rCount { return lCount > rCount }
+            return lhs < rhs
+        }
+        allTagsCache = sorted
+    }
     
     var body: some View {
         NavigationStack {
@@ -175,6 +194,14 @@ struct DiscoverView: View {
                 .cornerRadius(10)
                 .padding(.horizontal)
                 .padding(.top, 8)
+                .onChange(of: searchText) { _, newValue in
+                    debounceWorkItem?.cancel()
+                    let workItem = DispatchWorkItem {
+                        debouncedSearchText = newValue
+                    }
+                    debounceWorkItem = workItem
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: workItem)
+                }
                 
                 // Sort and Tag Controls
                 HStack {
@@ -220,10 +247,10 @@ struct DiscoverView: View {
                 .padding(.top, 8)
                 
                 // Tag Chips
-                if !allTags.isEmpty {
+                if !allTagsCache.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
-                            ForEach(allTags.prefix(15), id: \.self) { tag in
+                            ForEach(allTagsCache.prefix(15), id: \.self) { tag in
                                 TagChip(
                                     tag: tag,
                                     isSelected: selectedTags.contains(tag)
@@ -244,9 +271,26 @@ struct DiscoverView: View {
                 Divider()
                 
                 // Results
-                if viewModel.isLoading {
+                if discoverViewModel.isLoading && discoverViewModel.articles.isEmpty {
                     Spacer()
                     ProgressView("Loading articles...")
+                    Spacer()
+                } else if let error = discoverViewModel.errorMessage, discoverViewModel.articles.isEmpty {
+                    Spacer()
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.largeTitle)
+                            .foregroundStyle(.orange)
+                        Text("Failed to load articles")
+                            .font(.headline)
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Retry") {
+                            Task { await discoverViewModel.load() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                     Spacer()
                 } else if !matchingAuthors.isEmpty {
                     ScrollView {
@@ -260,26 +304,27 @@ struct DiscoverView: View {
                                 ForEach(matchingAuthors, id: \.slug) { author in
                                     NavigationLink(value: author.slug) {
                                         HStack(spacing: 12) {
-                                            AsyncImage(url: author.profileImage) { phase in
-                                                switch phase {
-                                                case .empty:
+                                            if let profileImage = author.profileImage {
+                                                CachedAsyncImage(url: profileImage) { image in
+                                                    image
+                                                        .resizable()
+                                                        .scaledToFill()
+                                                        .frame(width: 40, height: 40)
+                                                        .clipShape(Circle())
+                                                } placeholder: {
                                                     Image(systemName: "person.crop.circle.fill")
                                                         .resizable()
                                                         .scaledToFit()
                                                         .foregroundStyle(.secondary)
-                                                case .success(let image):
-                                                    image.resizable().scaledToFill()
-                                                case .failure:
-                                                    Image(systemName: "person.crop.circle.fill")
-                                                        .resizable()
-                                                        .scaledToFit()
-                                                        .foregroundStyle(.secondary)
-                                                @unknown default:
-                                                    Color.clear
+                                                        .frame(width: 40, height: 40)
                                                 }
+                                            } else {
+                                                Image(systemName: "person.crop.circle.fill")
+                                                    .resizable()
+                                                    .scaledToFit()
+                                                    .foregroundStyle(.secondary)
+                                                    .frame(width: 40, height: 40)
                                             }
-                                            .frame(width: 40, height: 40)
-                                            .clipShape(Circle())
                                             
                                             Text(author.name)
                                                 .font(.headline)
@@ -309,13 +354,13 @@ struct DiscoverView: View {
                                         .onAppear {
                                             if article.id == filteredArticles.last?.id {
                                                 Task {
-                                                    await viewModel.loadMore()
+                                                    await discoverViewModel.loadMore()
                                                 }
                                             }
                                         }
                                     }
                                     
-                                    if viewModel.isLoadingMore {
+                                    if discoverViewModel.isLoadingMore {
                                         ProgressView()
                                             .padding()
                                     }
@@ -344,13 +389,13 @@ struct DiscoverView: View {
                                     // Load more when near the end
                                     if article.id == filteredArticles.last?.id {
                                         Task {
-                                            await viewModel.loadMore()
+                                            await discoverViewModel.loadMore()
                                         }
                                     }
                                 }
                             }
                             
-                            if viewModel.isLoadingMore {
+                            if discoverViewModel.isLoadingMore {
                                 ProgressView()
                                     .padding()
                             }
@@ -370,8 +415,16 @@ struct DiscoverView: View {
                     }
                 }
             }
+            .onAppear {
+                // Compute tags from any cached articles immediately
+                recomputeAllTags()
+            }
             .task {
-                await viewModel.load()
+                await discoverViewModel.load()
+            }
+            .onChange(of: discoverViewModel.articles) { _, _ in
+                // Recompute when articles update (e.g., after network load or pagination)
+                recomputeAllTags()
             }
             .navigationDestination(for: Article.self) { article in
                 ArticleDetailView(article: article)

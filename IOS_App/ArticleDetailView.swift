@@ -3,7 +3,8 @@ import WebKit
 
 struct ArticleDetailView: View {
     let article: Article
-    @StateObject private var viewModel = ArticleViewModel()
+    @EnvironmentObject var viewModel: ArticleViewModel
+    @StateObject private var detailVM: ArticleDetailViewModel
     @State private var isSaved: Bool = false
     @State private var scrollOffset: CGFloat = 0
     @State private var isExcerptExpanded: Bool = false
@@ -20,30 +21,26 @@ struct ArticleDetailView: View {
         }
     }
     
+    init(article: Article) {
+        self.article = article
+        _detailVM = StateObject(wrappedValue: ArticleDetailViewModel(article: article))
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 // Hero Image
                 if let imageURL = article.imageURL {
-                    AsyncImage(url: imageURL) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxWidth: .infinity)
-                        case .empty:
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.2))
-                                .frame(height: 250)
-                                .overlay(ProgressView())
-                        case .failure:
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.2))
-                                .frame(height: 250)
-                        @unknown default:
-                            EmptyView()
-                        }
+                    CachedAsyncImage(url: imageURL) { image in
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: .infinity)
+                    } placeholder: {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 250)
+                            .overlay(ProgressView())
                     }
                 }
                 
@@ -77,21 +74,16 @@ struct ArticleDetailView: View {
                                 NavigationLink(destination: AuthorProfileView(authorSlug: authorSlug)) {
                                     HStack(spacing: 8) {
                                         if let profileImage = article.authorProfileImage {
-                                            AsyncImage(url: profileImage) { phase in
-                                                switch phase {
-                                                case .success(let image):
-                                                    image
-                                                        .resizable()
-                                                        .scaledToFill()
-                                                        .frame(width: 32, height: 32)
-                                                        .clipShape(Circle())
-                                                case .empty, .failure:
-                                                    Circle()
-                                                        .fill(Color.gray.opacity(0.2))
-                                                        .frame(width: 32, height: 32)
-                                                @unknown default:
-                                                    EmptyView()
-                                                }
+                                            CachedAsyncImage(url: profileImage) { image in
+                                                image
+                                                    .resizable()
+                                                    .scaledToFill()
+                                                    .frame(width: 32, height: 32)
+                                                    .clipShape(Circle())
+                                            } placeholder: {
+                                                Circle()
+                                                    .fill(Color.gray.opacity(0.2))
+                                                    .frame(width: 32, height: 32)
                                             }
                                         } else {
                                             Circle()
@@ -132,7 +124,7 @@ struct ArticleDetailView: View {
                         Divider()
                             .padding(.vertical, 8)
                         
-                        DynamicHTMLContentView(html: article.contentHTML)
+                        DynamicHTMLContentView(html: detailVM.article.contentHTML)
                     }
                     .padding()
                 }
@@ -152,7 +144,7 @@ struct ArticleDetailView: View {
                 isSaved = article.isSaved
             }
             .task {
-                await viewModel.load()
+                await detailVM.loadContentIfNeeded(service: viewModel.articleService)
             }
     }
 }

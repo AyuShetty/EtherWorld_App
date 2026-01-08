@@ -7,29 +7,19 @@ struct ArticleRowView: View {
         VStack(alignment: .leading, spacing: 8) {
             // Cover Image
             if let imageURL = article.imageURL {
-                AsyncImage(url: imageURL) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(height: 200)
-                            .clipped()
-                            .cornerRadius(12)
-                    case .empty:
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 200)
-                            .cornerRadius(12)
-                            .overlay(ProgressView())
-                    case .failure:
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 200)
-                            .cornerRadius(12)
-                    @unknown default:
-                        EmptyView()
-                    }
+                CachedAsyncImage(url: imageURL) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 200)
+                        .clipped()
+                        .cornerRadius(12)
+                } placeholder: {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(height: 200)
+                        .cornerRadius(12)
+                        .overlay(ProgressView())
                 }
             }
             
@@ -48,21 +38,16 @@ struct ArticleRowView: View {
                 NavigationLink(destination: AuthorProfileView(authorSlug: authorSlug)) {
                     HStack(spacing: 8) {
                         if let profileImage = article.authorProfileImage {
-                            AsyncImage(url: profileImage) { phase in
-                                switch phase {
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 24, height: 24)
-                                        .clipShape(Circle())
-                                case .empty, .failure:
-                                    Circle()
-                                        .fill(Color.gray.opacity(0.2))
-                                        .frame(width: 24, height: 24)
-                                @unknown default:
-                                    EmptyView()
-                                }
+                            CachedAsyncImage(url: profileImage) { image in
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 24, height: 24)
+                                    .clipShape(Circle())
+                            } placeholder: {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.2))
+                                    .frame(width: 24, height: 24)
                             }
                         } else {
                             Circle()
@@ -79,6 +64,8 @@ struct ArticleRowView: View {
             }
         }
         .padding(.vertical, 8)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Article: \(article.title). Author: \(article.author ?? "Unknown author").")
     }
 }
 

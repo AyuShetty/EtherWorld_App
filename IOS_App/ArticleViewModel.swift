@@ -11,14 +11,23 @@ final class ArticleViewModel: ObservableObject {
     @Published var errorMessage: String?
     
     private let service: ArticleService
+    private let paginatedService: PaginatedArticleService?
     private let saveKey = "savedArticles"
     private var currentPage: Int = 1
     private let pageSize: Int = 15
+    private let cacheURL: URL = {
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        return caches.appendingPathComponent("articles-cache.json")
+    }()
     
     init(service: ArticleService = ServiceFactory.makeArticleService(environment: .production)) {
         self.service = service
+        self.paginatedService = service as? PaginatedArticleService
+        loadCachedArticles()
         loadSavedState()
     }
+
+    var articleService: ArticleService { service }
     
     func load() async {
         guard !isLoading else { return }
@@ -33,6 +42,9 @@ final class ArticleViewModel: ObservableObject {
                 mutableArticle.isSaved = isSaved(articleId: article.id)
                 return mutableArticle
             }
+            saveCache(articles)
+            // Prefetch images for first screen to accelerate rendering
+            await prefetchImages(count: 10)
             self.errorMessage = nil
             // Check if we got fewer than expected (means no more pages)
             if result.count < pageSize {
@@ -45,14 +57,14 @@ final class ArticleViewModel: ObservableObject {
     
     func loadMore() async {
         guard !isLoadingMore, !isLoading, hasMoreArticles else { return }
-        guard let ghostService = service as? GhostArticleService else { return }
+        guard let paginatedService = paginatedService else { return }
         
         isLoadingMore = true
         defer { isLoadingMore = false }
         
         currentPage += 1
         do {
-            let result = try await ghostService.fetchArticles(page: currentPage, limit: pageSize)
+            let result = try await paginatedService.fetchArticles(page: currentPage, limit: pageSize)
             if result.isEmpty {
                 hasMoreArticles = false
             } else {
@@ -72,6 +84,7 @@ final class ArticleViewModel: ObservableObject {
             }
         } catch {
             currentPage -= 1 // Revert on error
+            errorMessage = "Failed to load more articles."
         }
     }
     
@@ -104,5 +117,45 @@ final class ArticleViewModel: ObservableObject {
     private func saveSavedState() {
         let savedIds = articles.filter { $0.isSaved }.map { $0.id }
         UserDefaults.standard.set(savedIds, forKey: saveKey)
+    }
+
+    private func loadCachedArticles() {
+        guard let data = try? Data(contentsOf: cacheURL) else { return }
+        if let decoded = try? JSONDecoder().decode([Article].self, from: data) {
+            self.articles = decoded
+        }
+    }
+    
+    private func saveCache(_ articles: [Article]) {
+        guard let data = try? JSONEncoder().encode(articles) else { return }
+        try? data.write(to: cacheURL)
+    }
+    
+    private func prefetchImages(count: Int) async {
+        let session = URLSession(configuration: {
+            let c = URLSessionConfiguration.default
+            c.requestCachePolicy = .returnCacheDataElseLoad
+            c.urlCache = URLCache.shared
+            return c
+        }())
+        let targets = articles.prefix(count)
+        await withTaskGroup(of: Void.self) { group in
+            for article in targets {
+                if let url = article.imageURL {
+                    group.addTask {
+                        if let (data, _) = try? await session.data(from: url), let img = UIImage(data: data) {
+                            ImageCache.shared.set(img, forKey: url.absoluteString)
+                        }
+                    }
+                }
+                if let url = article.authorProfileImage {
+                    group.addTask {
+                        if let (data, _) = try? await session.data(from: url), let img = UIImage(data: data) {
+                            ImageCache.shared.set(img, forKey: url.absoluteString)
+                        }
+                    }
+                }
+            }
+        }
     }
 }

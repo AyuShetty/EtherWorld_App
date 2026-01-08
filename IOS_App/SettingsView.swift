@@ -111,6 +111,25 @@ struct SettingsView: View {
                 } header: {
                     Text("Storage")
                 }
+
+                // Developer Section (Debug Tools)
+                Section {
+                    Button {
+                        Task { await BackgroundRefreshManager.performRefresh() }
+                    } label: {
+                        HStack {
+                            Image(systemName: "bolt.fill")
+                                .foregroundStyle(.orange)
+                                .frame(width: 28)
+                            Text("Trigger Background Refresh Now")
+                        }
+                    }
+                    .disabled(!notificationManager.isAuthorized)
+                } header: {
+                    Text("Developer")
+                } footer: {
+                    Text("Grant notification permission first to see a test alert when a new article is detected.")
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -125,11 +144,17 @@ struct SettingsView: View {
                 }
             }
         }
-        .preferredColorScheme(darkModeEnabled ? .dark : .light)
     }
     
     private func clearCache() {
         URLCache.shared.removeAllCachedResponses()
+        // Clear JSON article cache
+        let cacheURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appendingPathComponent("articles-cache.json")
+        try? FileManager.default.removeItem(at: cacheURL)
+        // Clear image cache
+        ImageCache.shared.clear()
+        let imagesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!.appendingPathComponent("images")
+        try? FileManager.default.removeItem(at: imagesDir)
     }
 }
 
