@@ -52,11 +52,13 @@ struct AuthorProfileView: View {
                                     .frame(width: 120, height: 120)
                                     .clipShape(Circle())
                                     .overlay(Circle().stroke(Color.white, lineWidth: 4))
+                                    .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 4)
                             } placeholder: {
                                 Circle()
                                     .fill(Color.gray.opacity(0.2))
                                     .frame(width: 120, height: 120)
                                     .overlay(Circle().stroke(Color.white, lineWidth: 4))
+                                    .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 4)
                             }
                             .offset(y: -60)
                             .padding(.bottom, -60)
@@ -66,7 +68,7 @@ struct AuthorProfileView: View {
                         VStack(spacing: 8) {
                             Text(author.name)
                                 .font(.title)
-                                .bold()
+                                .fontWeight(.bold)
                             
                             if let location = author.location {
                                 HStack(spacing: 4) {
@@ -127,6 +129,7 @@ struct AuthorProfileView: View {
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal)
+                                .padding(.top, 4)
                         }
                     }
                     .padding()
@@ -138,11 +141,13 @@ struct AuthorProfileView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("STORIES BY \(author.name.uppercased())")
                             .font(.headline)
+                            .fontWeight(.semibold)
                             .foregroundColor(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
                             .background(Color.teal)
                             .cornerRadius(8)
+                            .shadow(color: Color.teal.opacity(0.3), radius: 8, x: 0, y: 2)
                             .padding(.horizontal)
                         
                         if viewModel.articles.isEmpty {
@@ -153,7 +158,7 @@ struct AuthorProfileView: View {
                         } else {
                             ForEach(viewModel.articles) { article in
                                 NavigationLink(destination: ArticleDetailView(article: article)) {
-                                    VStack(alignment: .leading, spacing: 8) {
+                                    VStack(alignment: .leading, spacing: 12) {
                                         if let imageURL = article.imageURL {
                                             CachedAsyncImage(url: imageURL) { image in
                                                 image
@@ -161,25 +166,35 @@ struct AuthorProfileView: View {
                                                     .scaledToFill()
                                                     .frame(height: 200)
                                                     .clipped()
-                                                    .cornerRadius(8)
+                                                    .cornerRadius(12)
                                             } placeholder: {
-                                                Color.gray.opacity(0.2)
-                                                    .frame(height: 200)
-                                                    .cornerRadius(8)
+                                                ZStack {
+                                                    LinearGradient(
+                                                        colors: [Color.gray.opacity(0.1), Color.gray.opacity(0.2), Color.gray.opacity(0.1)],
+                                                        startPoint: .leading,
+                                                        endPoint: .trailing
+                                                    )
+                                                    ProgressView()
+                                                }
+                                                .frame(height: 200)
+                                                .cornerRadius(12)
                                             }
                                         }
                                         
-                                        VStack(alignment: .leading, spacing: 4) {
+                                        VStack(alignment: .leading, spacing: 6) {
                                             if !article.tags.isEmpty {
                                                 Text(article.tags.first!)
                                                     .font(.caption)
+                                                    .fontWeight(.semibold)
                                                     .foregroundColor(.blue)
                                                     .textCase(.uppercase)
                                             }
                                             
                                             Text(article.title)
                                                 .font(.headline)
+                                                .fontWeight(.semibold)
                                                 .lineLimit(2)
+                                                .foregroundColor(.primary)
                                             
                                             Text(article.excerpt)
                                                 .font(.subheadline)
@@ -189,14 +204,17 @@ struct AuthorProfileView: View {
                                             Text(article.publishedAt.formatted(date: .abbreviated, time: .omitted))
                                                 .font(.caption)
                                                 .foregroundColor(.gray)
+                                                .padding(.top, 2)
                                         }
                                     }
-                                    .padding()
+                                    .padding(12)
                                     .background(Color(.systemBackground))
+                                    .cornerRadius(16)
+                                    .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 2)
                                 }
                                 .buttonStyle(.plain)
-                                
-                                Divider()
+                                .padding(.horizontal)
+                                .padding(.bottom, 8)
                             }
                         }
                     }

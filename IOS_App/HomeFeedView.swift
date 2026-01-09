@@ -1,6 +1,260 @@
 import SwiftUI
 import Combine
 
+// MARK: - Supporting Views
+
+struct FeedHeaderView: View {
+    let onSettingsTap: () -> Void
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(Date().formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .textCase(.uppercase)
+                Text("Today")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+            }
+            
+            Spacer()
+            
+            Button(action: onSettingsTap) {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.primary)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 8)
+    }
+}
+
+struct HeroArticleCard: View {
+    let article: Article
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let imageURL = article.imageURL {
+                CachedAsyncImage(url: imageURL) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: UIScreen.main.bounds.width - 40, height: 160)
+                        .clipped()
+                        .cornerRadius(12)
+                } placeholder: {
+                    heroImagePlaceholder
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: 6) {
+                if let minutes = article.readingTimeMinutes {
+                    Text("\(minutes) min read")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Text(article.title)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+                
+                Text(article.excerpt)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(width: UIScreen.main.bounds.width - 40, alignment: .leading)
+        }
+    }
+    
+    private var heroImagePlaceholder: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.gray.opacity(0.1), Color.gray.opacity(0.2), Color.gray.opacity(0.1)],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            ProgressView()
+        }
+        .frame(width: UIScreen.main.bounds.width - 40, height: 160)
+        .cornerRadius(12)
+    }
+}
+
+struct TopStoryRow: View {
+    let article: Article
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            if let imageURL = article.imageURL {
+                CachedAsyncImage(url: imageURL) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipped()
+                        .cornerRadius(8)
+                } placeholder: {
+                    thumbnailPlaceholder
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                if !article.tags.isEmpty {
+                    Text(article.tags.first!)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                }
+                
+                Text(article.title)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+                
+                if let author = article.author {
+                    Text(author)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+    }
+    
+    private var thumbnailPlaceholder: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.gray.opacity(0.1), Color.gray.opacity(0.2), Color.gray.opacity(0.1)],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        }
+        .frame(width: 80, height: 80)
+        .cornerRadius(8)
+    }
+}
+
+struct EmptyFeedView: View {
+    let onRefresh: () async -> Void
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(Date().formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .textCase(.uppercase)
+                Text("Today")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal)
+            
+            Spacer()
+            
+            VStack(spacing: 16) {
+                Circle()
+                    .stroke(Color.gray.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [5]))
+                    .frame(width: 120, height: 120)
+                    .overlay(
+                        Image(systemName: "checkmark.circle")
+                            .font(.system(size: 48))
+                            .foregroundColor(.gray.opacity(0.5))
+                    )
+                
+                Text("All caught up!")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Text("There are no new stories in your\nfeed right now. Check back in a bit.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                
+                Button {
+                    Task { await onRefresh() }
+                } label: {
+                    HStack {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Refresh Feed")
+                    }
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.black)
+                    .cornerRadius(24)
+                }
+                .padding(.top, 8)
+            }
+            
+            Spacer()
+        }
+        .padding(.top)
+    }
+}
+
+struct LoadingFeedView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(Date().formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                    Text("Today")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                }
+                .padding(.horizontal)
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    ZStack {
+                        LinearGradient(
+                            colors: [Color.gray.opacity(0.1), Color.gray.opacity(0.2), Color.gray.opacity(0.1)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    }
+                    .frame(height: 200)
+                    .cornerRadius(16)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(width: 80, height: 12)
+                        
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 20)
+                        
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 14)
+                            .frame(width: 250)
+                    }
+                }
+                .padding(.horizontal)
+            }
+            .padding(.top)
+        }
+    }
+}
+
+// MARK: - Main View
+
 struct HomeFeedView: View {
     @EnvironmentObject var viewModel: ArticleViewModel
     @StateObject private var notificationManager = NotificationManager.shared
@@ -11,72 +265,128 @@ struct HomeFeedView: View {
     
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            Group {
-                if viewModel.isLoading && viewModel.articles.isEmpty {
-                    ProgressView("Loading articles…")
-                } else if let error = viewModel.errorMessage, viewModel.articles.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.largeTitle)
-                            .foregroundStyle(.orange)
-                        Text("Failed to load articles")
-                            .font(.headline)
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Button("Retry") {
-                            Task { await viewModel.load() }
+            contentView
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            showingDiscover = true
+                        } label: {
+                            Image(systemName: "magnifyingglass")
                         }
-                        .buttonStyle(.borderedProminent)
+                        .accessibilityLabel("Discover")
+                        .accessibilityHint("Opens the discover screen to search and filter articles")
                     }
-                } else if viewModel.articles.isEmpty {
-                    ContentUnavailableView("No Articles", systemImage: "newspaper", description: Text("Check back later."))
-                } else {
-                    List(viewModel.articles) { article in
-                        NavigationLink(value: article) {
-                            ArticleRowView(article: article)
+                }
+                .sheet(isPresented: $showingDiscover) {
+                    DiscoverView()
+                }
+                .sheet(isPresented: $showingSettings) {
+                    SettingsView()
+                }
+                .task {
+                    if notificationsEnabled {
+                        NotificationManager.shared.checkForNewArticles(articles: viewModel.articles)
+                    }
+                }
+                .onReceive(notificationManager.$selectedArticleId.compactMap { $0 }) { articleId in
+                    Task { await handleDeepLink(articleId: articleId) }
+                }
+                .navigationDestination(for: Article.self) { article in
+                    ArticleDetailView(article: article)
+                }
+        }
+    }
+    
+    @ViewBuilder
+    private var contentView: some View {
+        if viewModel.isLoading && viewModel.articles.isEmpty {
+            LoadingFeedView()
+        } else if let error = viewModel.errorMessage, viewModel.articles.isEmpty {
+            ErrorStateView(
+                errorMessage: error,
+                retryAction: { await viewModel.load() },
+                isOffline: error.localizedCaseInsensitiveContains("offline") || error.localizedCaseInsensitiveContains("connection")
+            )
+        } else if viewModel.articles.isEmpty {
+            EmptyFeedView(onRefresh: { await viewModel.load() })
+        } else {
+            feedContentView
+        }
+    }
+    
+    private var feedContentView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                FeedHeaderView(onSettingsTap: { showingSettings = true })
+                
+                // Horizontal scrolling hero section
+                if !viewModel.articles.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(spacing: 16) {
+                            ForEach(viewModel.articles.prefix(10)) { article in
+                                NavigationLink(value: article) {
+                                    HeroArticleCard(article: article)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                }
+                
+                // All articles in vertical list
+                if viewModel.articles.count > 0 {
+                    topStoriesSection
+                }
+            }
+            .padding(.top)
+        }
+        .refreshable {
+            await viewModel.load()
+        }
+    }
+    
+    private var topStoriesSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Circle()
+                    .fill(Color.primary)
+                    .frame(width: 8, height: 8)
+                
+                Text("TOP STORIES")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+            }
+            .padding(.horizontal)
+            .padding(.top, 24)
+            
+            ForEach(Array(viewModel.articles.enumerated()), id: \.element.id) { index, article in
+                NavigationLink(value: article) {
+                    TopStoryRow(article: article)
+                }
+                .buttonStyle(.plain)
+                .onAppear {
+                    // Load more when reaching near the end
+                    if index == viewModel.articles.count - 3 {
+                        Task {
+                            await viewModel.loadMore()
                         }
                     }
-                    .listStyle(.insetGrouped)
-                    .refreshable {
-                        await viewModel.load()
-                    }
                 }
+                
+                Divider()
+                    .padding(.leading)
             }
-            .navigationTitle("EtherWorld")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
+            
+            if viewModel.isLoadingMore {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .padding()
+                    Spacer()
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showingDiscover = true
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                    }
-                }
-            }
-            .sheet(isPresented: $showingDiscover) {
-                DiscoverView()
-            }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView()
-            }
-            .task {
-                // Check for new articles and send notification if enabled
-                if notificationsEnabled {
-                    NotificationManager.shared.checkForNewArticles(articles: viewModel.articles)
-                }
-            }
-            .onReceive(notificationManager.$selectedArticleId.compactMap { $0 }) { articleId in
-                Task { await handleDeepLink(articleId: articleId) }
-            }
-            .navigationDestination(for: Article.self) { article in
-                ArticleDetailView(article: article)
             }
         }
     }

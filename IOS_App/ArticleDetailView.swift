@@ -36,11 +36,25 @@ struct ArticleDetailView: View {
                             .resizable()
                             .scaledToFit()
                             .frame(maxWidth: .infinity)
+                            .accessibilityLabel("Article cover image: \(article.title)")
+                            .transition(.opacity)
                     } placeholder: {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 250)
-                            .overlay(ProgressView())
+                        ZStack {
+                            Rectangle()
+                                .fill(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            Color.gray.opacity(0.1),
+                                            Color.gray.opacity(0.2),
+                                            Color.gray.opacity(0.1)
+                                        ]),
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                            ProgressView()
+                        }
+                        .frame(height: 250)
                     }
                 }
                 
@@ -48,6 +62,7 @@ struct ArticleDetailView: View {
                     Text(article.title)
                         .font(.title)
                         .bold()
+                        .accessibilityAddTraits(.isHeader)
                     
                     // Expandable Excerpt
                     VStack(alignment: .leading, spacing: 4) {
@@ -135,10 +150,13 @@ struct ArticleDetailView: View {
                 Button(action: {
                     isSaved.toggle()
                     viewModel.toggleSaved(article: article)
+                    HapticFeedback.medium()
                 }) {
                     Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
                         .foregroundColor(.blue)
                 }
+                .accessibilityLabel(isSaved ? "Remove bookmark" : "Add bookmark")
+                .accessibilityHint("Double tap to \(isSaved ? "remove" : "add") this article to your saved articles")
             )
             .onAppear {
                 isSaved = article.isSaved
@@ -172,7 +190,12 @@ struct WebViewContainer: UIViewRepresentable {
     @Binding var contentHeight: CGFloat
     
     func makeUIView(context: Context) -> WKWebView {
-        let webView = WKWebView()
+        let contentController = WKUserContentController()
+        contentController.add(context.coordinator, name: "heightHandler")
+        let config = WKWebViewConfiguration()
+        config.userContentController = contentController
+        
+        let webView = WKWebView(frame: .zero, configuration: config)
         webView.scrollView.isScrollEnabled = false
         webView.scrollView.bounces = false
         webView.isOpaque = false
@@ -182,11 +205,11 @@ struct WebViewContainer: UIViewRepresentable {
         let htmlString = """
         <html>
         <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta charset=\"UTF-8\">
+            <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
             <style>
                 body { 
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto; 
+                    font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto; 
                     font-size: 16px; 
                     line-height: 1.6; 
                     margin: 0; 
@@ -198,6 +221,20 @@ struct WebViewContainer: UIViewRepresentable {
                 h1, h2, h3 { color: #000; margin-top: 16px; }
                 p { margin: 10px 0; }
             </style>
+            <script>
+                function sendHeight() {
+                    window.webkit.messageHandlers.heightHandler.postMessage(document.documentElement.scrollHeight);
+                }
+                window.addEventListener('load', sendHeight);
+                window.addEventListener('resize', sendHeight);
+                new ResizeObserver(sendHeight).observe(document.body);
+                // Recalculate after images/layout settle
+                window.addEventListener('load', function() {
+                    setTimeout(sendHeight, 50);
+                    setTimeout(sendHeight, 200);
+                    setTimeout(sendHeight, 500);
+                });
+            </script>
         </head>
         <body>\(html)</body>
         </html>
@@ -213,7 +250,7 @@ struct WebViewContainer: UIViewRepresentable {
         Coordinator(contentHeight: $contentHeight)
     }
     
-    class Coordinator: NSObject, WKNavigationDelegate {
+    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         @Binding var contentHeight: CGFloat
         
         init(contentHeight: Binding<CGFloat>) {
@@ -221,11 +258,28 @@ struct WebViewContainer: UIViewRepresentable {
         }
         
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            webView.evaluateJavaScript("document.body.scrollHeight") { (result, error) in
+            webView.evaluateJavaScript("document.documentElement.scrollHeight") { (result, _) in
                 if let height = result as? CGFloat {
                     DispatchQueue.main.async {
                         self.contentHeight = height
                     }
+                } else if let number = result as? NSNumber {
+                    DispatchQueue.main.async {
+                        self.contentHeight = CGFloat(truncating: number)
+                    }
+                }
+            }
+        }
+        
+        // Listen for height updates from ResizeObserver
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            if message.name == "heightHandler" {
+                if let height = message.body as? CGFloat {
+                    DispatchQueue.main.async { self.contentHeight = height }
+                } else if let number = message.body as? NSNumber {
+                    DispatchQueue.main.async { self.contentHeight = CGFloat(truncating: number) }
+                } else if let doubleVal = message.body as? Double {
+                    DispatchQueue.main.async { self.contentHeight = CGFloat(doubleVal) }
                 }
             }
         }

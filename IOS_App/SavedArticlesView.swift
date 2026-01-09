@@ -19,6 +19,8 @@ struct SavedArticlesView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color(.systemBackground))
+                    .accessibilityLabel("No saved articles")
+                    .accessibilityHint("Your saved articles will appear here. Tap the bookmark icon on any article to save it.")
                 } else {
                     List(viewModel.savedArticles) { article in
                         NavigationLink(destination: ArticleDetailView(article: article)) {

@@ -5,6 +5,8 @@ struct SettingsView: View {
     @StateObject private var notificationManager = NotificationManager.shared
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
     @AppStorage("darkModeEnabled") private var darkModeEnabled = false
+    @AppStorage("analyticsEnabled") private var analyticsEnabled = false
+    @State private var showingPrivacyPolicy = false
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -13,12 +15,14 @@ struct SettingsView: View {
                 // Notifications Section
                 Section {
                     Toggle(isOn: $notificationsEnabled) {
-                        HStack {
+                        HStack(spacing: 12) {
                             Image(systemName: "bell.fill")
                                 .foregroundStyle(.blue)
                                 .frame(width: 28)
-                            VStack(alignment: .leading) {
+                                .font(.system(size: 16))
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text("New Article Notifications")
+                                    .fontWeight(.medium)
                                 Text("Get notified when new articles are published")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -32,6 +36,7 @@ struct SettingsView: View {
                                     notificationsEnabled = false
                                 }
                             }
+                            HapticFeedback.light()
                         }
                     }
                 } header: {
@@ -41,35 +46,86 @@ struct SettingsView: View {
                 // Appearance Section
                 Section {
                     Toggle(isOn: $darkModeEnabled) {
-                        HStack {
+                        HStack(spacing: 12) {
                             Image(systemName: "moon.fill")
                                 .foregroundStyle(.purple)
                                 .frame(width: 28)
+                                .font(.system(size: 16))
                             Text("Dark Mode")
+                                .fontWeight(.medium)
                         }
+                    }
+                    .onChange(of: darkModeEnabled) { _, _ in
+                        HapticFeedback.light()
                     }
                 } header: {
                     Text("Appearance")
                 }
                 
+                // Privacy & Data Section
+                Section {
+                    Button {
+                        showingPrivacyPolicy = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "lock.fill")
+                                .foregroundStyle(.green)
+                                .frame(width: 28)
+                                .font(.system(size: 16))
+                            Text("Privacy Policy")
+                                .fontWeight(.medium)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                    
+                    Toggle(isOn: $analyticsEnabled) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "chart.bar.fill")
+                                .foregroundStyle(.blue)
+                                .frame(width: 28)
+                                .font(.system(size: 16))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Analytics & Diagnostics")
+                                    .fontWeight(.medium)
+                                Text("Help improve the app")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .onChange(of: analyticsEnabled) { _, _ in
+                        HapticFeedback.light()
+                    }
+                } header: {
+                    Text("Privacy")
+                }
+                
                 // About Section
                 Section {
-                    HStack {
+                    HStack(spacing: 12) {
                         Image(systemName: "info.circle.fill")
                             .foregroundStyle(.gray)
                             .frame(width: 28)
+                            .font(.system(size: 16))
                         Text("Version")
+                            .fontWeight(.medium)
                         Spacer()
                         Text("1.0.0")
                             .foregroundStyle(.secondary)
                     }
                     
                     Link(destination: URL(string: "https://etherworld.co")!) {
-                        HStack {
+                        HStack(spacing: 12) {
                             Image(systemName: "globe")
                                 .foregroundStyle(.blue)
                                 .frame(width: 28)
+                                .font(.system(size: 16))
                             Text("Visit EtherWorld")
+                                .fontWeight(.medium)
                             Spacer()
                             Image(systemName: "arrow.up.right")
                                 .font(.caption)
@@ -79,11 +135,13 @@ struct SettingsView: View {
                     .foregroundStyle(.primary)
                     
                     Link(destination: URL(string: "https://twitter.com/AayushS20298601")!) {
-                        HStack {
+                        HStack(spacing: 12) {
                             Image(systemName: "at")
                                 .foregroundStyle(.blue)
                                 .frame(width: 28)
+                                .font(.system(size: 16))
                             Text("Follow on Twitter")
+                                .fontWeight(.medium)
                             Spacer()
                             Image(systemName: "arrow.up.right")
                                 .font(.caption)
@@ -125,6 +183,8 @@ struct SettingsView: View {
                         }
                     }
                     .disabled(!notificationManager.isAuthorized)
+                    .accessibilityLabel("Trigger background refresh")
+                    .accessibilityHint("Manually triggers the background refresh to check for new articles and send a test notification")
                 } header: {
                     Text("Developer")
                 } footer: {
@@ -142,6 +202,9 @@ struct SettingsView: View {
                             .foregroundStyle(.primary)
                     }
                 }
+            }
+            .sheet(isPresented: $showingPrivacyPolicy) {
+                PrivacyPolicyView()
             }
         }
     }

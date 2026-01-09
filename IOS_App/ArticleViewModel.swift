@@ -9,12 +9,14 @@ final class ArticleViewModel: ObservableObject {
     @Published private(set) var isLoadingMore: Bool = false
     @Published private(set) var hasMoreArticles: Bool = true
     @Published var errorMessage: String?
+    @Published private(set) var lastUpdated: Date?
     
     private let service: ArticleService
     private let paginatedService: PaginatedArticleService?
     private let saveKey = "savedArticles"
+    private let lastUpdatedKey = "lastArticlesUpdate"
     private var currentPage: Int = 1
-    private let pageSize: Int = 15
+    private let pageSize: Int = 50
     private let cacheURL: URL = {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         return caches.appendingPathComponent("articles-cache.json")
@@ -25,6 +27,7 @@ final class ArticleViewModel: ObservableObject {
         self.paginatedService = service as? PaginatedArticleService
         loadCachedArticles()
         loadSavedState()
+        loadLastUpdated()
     }
 
     var articleService: ArticleService { service }
@@ -46,6 +49,7 @@ final class ArticleViewModel: ObservableObject {
             // Prefetch images for first screen to accelerate rendering
             await prefetchImages(count: 10)
             self.errorMessage = nil
+            saveLastUpdated()
             // Check if we got fewer than expected (means no more pages)
             if result.count < pageSize {
                 hasMoreArticles = false
@@ -158,4 +162,35 @@ final class ArticleViewModel: ObservableObject {
             }
         }
     }
+    
+    private func loadLastUpdated() {
+        if let timestamp = UserDefaults.standard.object(forKey: lastUpdatedKey) as? Date {
+            self.lastUpdated = timestamp
+        }
+    }
+    
+    private func saveLastUpdated() {
+        let now = Date()
+        UserDefaults.standard.set(now, forKey: lastUpdatedKey)
+        self.lastUpdated = now
+    }
+    
+    func lastUpdatedText() -> String {
+        guard let lastUpdated = lastUpdated else { return "" }
+        let interval = Date().timeIntervalSince(lastUpdated)
+        
+        if interval < 60 {
+            return "Just now"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes) minute\(minutes == 1 ? "" : "s") ago"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours) hour\(hours == 1 ? "" : "s") ago"
+        } else {
+            let days = Int(interval / 86400)
+            return "\(days) day\(days == 1 ? "" : "s") ago"
+        }
+    }
 }
+

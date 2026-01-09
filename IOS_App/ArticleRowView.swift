@@ -4,7 +4,7 @@ struct ArticleRowView: View {
     let article: Article
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             // Cover Image
             if let imageURL = article.imageURL {
                 CachedAsyncImage(url: imageURL) { image in
@@ -13,57 +13,86 @@ struct ArticleRowView: View {
                         .scaledToFill()
                         .frame(height: 200)
                         .clipped()
-                        .cornerRadius(12)
+                        .cornerRadius(16)
                 } placeholder: {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(height: 200)
-                        .cornerRadius(12)
-                        .overlay(ProgressView())
+                    ZStack {
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color.gray.opacity(0.1),
+                                        Color.gray.opacity(0.2),
+                                        Color.gray.opacity(0.1)
+                                    ]),
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                        ProgressView()
+                    }
+                    .frame(height: 200)
+                    .cornerRadius(16)
                 }
             }
             
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(article.title)
                     .font(.headline)
+                    .fontWeight(.semibold)
                     .foregroundStyle(.primary)
                     .lineLimit(2)
+                
                 Text(article.excerpt)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
             
-            if let author = article.author, let authorSlug = article.authorSlug {
-                NavigationLink(destination: AuthorProfileView(authorSlug: authorSlug)) {
-                    HStack(spacing: 8) {
-                        if let profileImage = article.authorProfileImage {
-                            CachedAsyncImage(url: profileImage) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 24, height: 24)
-                                    .clipShape(Circle())
-                            } placeholder: {
+            HStack(spacing: 0) {
+                if let author = article.author, let authorSlug = article.authorSlug {
+                    NavigationLink(destination: AuthorProfileView(authorSlug: authorSlug)) {
+                        HStack(spacing: 8) {
+                            if let profileImage = article.authorProfileImage {
+                                CachedAsyncImage(url: profileImage) { image in
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 28, height: 28)
+                                        .clipShape(Circle())
+                                } placeholder: {
+                                    Circle()
+                                        .fill(Color.gray.opacity(0.2))
+                                        .frame(width: 28, height: 28)
+                                }
+                            } else {
                                 Circle()
                                     .fill(Color.gray.opacity(0.2))
-                                    .frame(width: 24, height: 24)
+                                    .frame(width: 28, height: 28)
                             }
-                        } else {
-                            Circle()
-                                .fill(Color.gray.opacity(0.2))
-                                .frame(width: 24, height: 24)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(author)
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.blue)
+                                
+                                Text(article.publishedAt.formatted(date: .abbreviated, time: .omitted))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
-                        
-                        Text(author)
-                            .font(.caption)
-                            .foregroundColor(.blue)
                     }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                
+                Spacer()
             }
         }
         .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+        .background(Color(.systemBackground))
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 2)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Article: \(article.title). Author: \(article.author ?? "Unknown author").")
     }

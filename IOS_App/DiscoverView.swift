@@ -261,11 +261,13 @@ struct DiscoverView: View {
                                         selectedTags.insert(tag)
                                     }
                                 }
+                                .transition(.scale.combined(with: .opacity))
                             }
                         }
                         .padding(.horizontal)
                         .padding(.vertical, 8)
                     }
+                    .transition(.opacity)
                 }
                 
                 Divider()
@@ -276,22 +278,11 @@ struct DiscoverView: View {
                     ProgressView("Loading articles...")
                     Spacer()
                 } else if let error = discoverViewModel.errorMessage, discoverViewModel.articles.isEmpty {
-                    Spacer()
-                    VStack(spacing: 12) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.largeTitle)
-                            .foregroundStyle(.orange)
-                        Text("Failed to load articles")
-                            .font(.headline)
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Button("Retry") {
-                            Task { await discoverViewModel.load() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    Spacer()
+                    ErrorStateView(
+                        errorMessage: error,
+                        retryAction: { await discoverViewModel.load() },
+                        isOffline: error.localizedCaseInsensitiveContains("offline") || error.localizedCaseInsensitiveContains("connection")
+                    )
                 } else if !matchingAuthors.isEmpty {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 16) {
@@ -413,6 +404,8 @@ struct DiscoverView: View {
                         Image(systemName: "xmark")
                             .foregroundStyle(.primary)
                     }
+                    .accessibilityLabel("Close")
+                    .accessibilityHint("Closes the discover screen")
                 }
             }
             .onAppear {
@@ -441,16 +434,34 @@ struct TagChip: View {
     let isSelected: Bool
     let action: () -> Void
     
+    @State private var isPressed = false
+    
     var body: some View {
-        Button(action: action) {
+        Button(action: {
+            action()
+            HapticFeedback.light()
+        }) {
             Text(tag)
                 .font(.subheadline)
+                .fontWeight(.medium)
                 .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(isSelected ? Color.blue : Color(.systemGray5))
+                .padding(.vertical, 8)
+                .background(
+                    isSelected 
+                        ? Color.blue 
+                        : Color(.systemGray5)
+                )
                 .foregroundStyle(isSelected ? .white : .primary)
-                .cornerRadius(16)
+                .cornerRadius(18)
+                .opacity(isPressed ? 0.7 : 1.0)
         }
+        .buttonStyle(PlainButtonStyle())
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .onLongPressGesture(minimumDuration: .infinity, perform: {}, onPressingChanged: { pressed in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = pressed
+            }
+        })
     }
 }
 
