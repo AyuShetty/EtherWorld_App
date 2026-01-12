@@ -44,22 +44,31 @@ struct HeroArticleCard: View {
                         .frame(width: UIScreen.main.bounds.width - 40, height: 160)
                         .clipped()
                         .cornerRadius(12)
+                        .opacity(article.isRead ? 0.6 : 1.0)
                 } placeholder: {
                     heroImagePlaceholder
                 }
             }
             
             VStack(alignment: .leading, spacing: 6) {
-                if let minutes = article.readingTimeMinutes {
-                    Text("\(minutes) min read")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                HStack {
+                    if let minutes = article.readingTimeMinutes {
+                        Text("\(minutes) min read")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if article.isRead {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
                 }
                 
                 Text(article.title)
                     .font(.title3)
                     .fontWeight(.bold)
-                    .foregroundColor(.primary)
+                    .foregroundColor(article.isRead ? .secondary : .primary)
                     .lineLimit(2)
                 
                 Text(article.excerpt)
@@ -112,11 +121,19 @@ struct TopStoryRow: View {
                         .textCase(.uppercase)
                 }
                 
-                Text(article.title)
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
-                    .lineLimit(2)
+                HStack {
+                    Text(article.title)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(article.isRead ? .secondary : .primary)
+                        .lineLimit(2)
+                    
+                    if article.isRead {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                    }
+                }
                 
                 if let author = article.author {
                     Text(author)
@@ -124,6 +141,7 @@ struct TopStoryRow: View {
                         .foregroundColor(.secondary)
                 }
             }
+            .opacity(article.isRead ? 0.7 : 1.0)
             
             Spacer()
         }

@@ -14,6 +14,7 @@ final class ArticleViewModel: ObservableObject {
     private let service: ArticleService
     private let paginatedService: PaginatedArticleService?
     private let saveKey = "savedArticles"
+    private let readKey = "readArticles"
     private let lastUpdatedKey = "lastArticlesUpdate"
     private var currentPage: Int = 1
     private let pageSize: Int = 50
@@ -27,6 +28,7 @@ final class ArticleViewModel: ObservableObject {
         self.paginatedService = service as? PaginatedArticleService
         loadCachedArticles()
         loadSavedState()
+        loadReadState()
         loadLastUpdated()
     }
 
@@ -99,6 +101,20 @@ final class ArticleViewModel: ObservableObject {
         }
     }
     
+    func toggleRead(article: Article) {
+        if let index = articles.firstIndex(where: { $0.id == article.id }) {
+            articles[index].isRead.toggle()
+            saveReadState()
+        }
+    }
+    
+    func markAsRead(article: Article) {
+        if let index = articles.firstIndex(where: { $0.id == article.id }), !articles[index].isRead {
+            articles[index].isRead = true
+            saveReadState()
+        }
+    }
+    
     var savedArticles: [Article] {
         articles.filter { $0.isSaved }
     }
@@ -121,6 +137,25 @@ final class ArticleViewModel: ObservableObject {
     private func saveSavedState() {
         let savedIds = articles.filter { $0.isSaved }.map { $0.id }
         UserDefaults.standard.set(savedIds, forKey: saveKey)
+    }
+    
+    private func isRead(articleId: String) -> Bool {
+        let read = UserDefaults.standard.stringArray(forKey: readKey) ?? []
+        return read.contains(articleId)
+    }
+    
+    private func loadReadState() {
+        let read = UserDefaults.standard.stringArray(forKey: readKey) ?? []
+        articles = articles.map { article in
+            var mutableArticle = article
+            mutableArticle.isRead = read.contains(article.id)
+            return mutableArticle
+        }
+    }
+    
+    private func saveReadState() {
+        let readIds = articles.filter { $0.isRead }.map { $0.id }
+        UserDefaults.standard.set(readIds, forKey: readKey)
     }
 
     private func loadCachedArticles() {

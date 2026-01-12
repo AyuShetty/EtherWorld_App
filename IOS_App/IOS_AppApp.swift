@@ -12,6 +12,7 @@ import BackgroundTasks
 @main
 struct IOS_AppApp: App {
     @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var authManager = AuthenticationManager()
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -39,7 +40,13 @@ struct IOS_AppApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if authManager.isAuthenticated {
+                ContentView()
+                    .environmentObject(authManager)
+            } else {
+                LoginView()
+                    .environmentObject(authManager)
+            }
         }
         .modelContainer(sharedModelContainer)
         .onChange(of: scenePhase) { _, newPhase in

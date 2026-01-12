@@ -14,4 +14,5 @@ struct Article: Identifiable, Hashable, Codable {
     let tags: [String]
     let readingTimeMinutes: Int?
     var isSaved: Bool = false
+    var isRead: Bool = false
 }

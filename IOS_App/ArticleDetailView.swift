@@ -6,6 +6,7 @@ struct ArticleDetailView: View {
     @EnvironmentObject var viewModel: ArticleViewModel
     @StateObject private var detailVM: ArticleDetailViewModel
     @State private var isSaved: Bool = false
+    @State private var isRead: Bool = false
     @State private var scrollOffset: CGFloat = 0
     @State private var isExcerptExpanded: Bool = false
     
@@ -147,19 +148,31 @@ struct ArticleDetailView: View {
             .navigationTitle("Article")
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(trailing: 
-                Button(action: {
-                    isSaved.toggle()
-                    viewModel.toggleSaved(article: article)
-                    HapticFeedback.medium()
-                }) {
-                    Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                        .foregroundColor(.blue)
+                HStack(spacing: 16) {
+                    ShareLink(item: URL(string: article.url) ?? URL(fileURLWithPath: ""), subject: Text(article.title), message: Text(article.excerpt)) {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundColor(.blue)
+                    }
+                    .accessibilityLabel("Share article")
+                    .accessibilityHint("Opens sharing options for this article")
+                    
+                    Button(action: {
+                        isSaved.toggle()
+                        viewModel.toggleSaved(article: article)
+                        HapticFeedback.medium()
+                    }) {
+                        Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
+                            .foregroundColor(.blue)
+                    }
+                    .accessibilityLabel(isSaved ? "Remove bookmark" : "Add bookmark")
+                    .accessibilityHint("Double tap to \(isSaved ? "remove" : "add") this article to your saved articles")
                 }
-                .accessibilityLabel(isSaved ? "Remove bookmark" : "Add bookmark")
-                .accessibilityHint("Double tap to \(isSaved ? "remove" : "add") this article to your saved articles")
             )
             .onAppear {
                 isSaved = article.isSaved
+                isRead = article.isRead
+                // Mark as read when user opens the article
+                viewModel.markAsRead(article: article)
             }
             .task {
                 await detailVM.loadContentIfNeeded(service: viewModel.articleService)

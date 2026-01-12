@@ -3,10 +3,13 @@ import UserNotifications
 
 struct SettingsView: View {
     @StateObject private var notificationManager = NotificationManager.shared
+    @EnvironmentObject var authManager: AuthenticationManager
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
     @AppStorage("darkModeEnabled") private var darkModeEnabled = false
     @AppStorage("analyticsEnabled") private var analyticsEnabled = false
+    @AppStorage("newsletterOptIn") private var newsletterOptIn = false
     @State private var showingPrivacyPolicy = false
+    @State private var showingLogoutConfirmation = false
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -103,6 +106,30 @@ struct SettingsView: View {
                 } header: {
                     Text("Privacy")
                 }
+
+                // Newsletter Section
+                Section {
+                    Toggle(isOn: $newsletterOptIn) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "envelope.fill")
+                                .foregroundStyle(.orange)
+                                .frame(width: 28)
+                                .font(.system(size: 16))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Weekly Newsletter")
+                                    .fontWeight(.medium)
+                                Text("Get a concise recap of the week via email")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .onChange(of: newsletterOptIn) { _, _ in
+                        HapticFeedback.light()
+                    }
+                } header: {
+                    Text("Newsletter")
+                }
                 
                 // About Section
                 Section {
@@ -151,6 +178,36 @@ struct SettingsView: View {
                     .foregroundStyle(.primary)
                 } header: {
                     Text("About")
+                }
+                
+                // Account Section
+                Section {
+                    if let user = authManager.currentUser {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Signed in as")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(user.email)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    
+                    Button(role: .destructive) {
+                        showingLogoutConfirmation = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .foregroundStyle(.red)
+                                .frame(width: 28)
+                                .font(.system(size: 16))
+                            Text("Sign Out")
+                                .fontWeight(.medium)
+                        }
+                    }
+                } header: {
+                    Text("Account")
                 }
                 
                 // Cache Section
@@ -205,6 +262,14 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showingPrivacyPolicy) {
                 PrivacyPolicyView()
+            }
+            .alert("Sign Out", isPresented: $showingLogoutConfirmation) {
+                Button("Cancel", role: .cancel) {}
+                Button("Sign Out", role: .destructive) {
+                    authManager.logout()
+                }
+            } message: {
+                Text("Are you sure you want to sign out? Your saved articles and preferences will be preserved.")
             }
         }
     }
