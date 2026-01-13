@@ -42,34 +42,57 @@ final class AuthenticationManager: ObservableObject {
     }
     
     func sendMagicLink(email: String) async {
-        guard !email.isEmpty else {
-            errorMessage = "Please enter a valid email address"
-            return
-        }
-        
+        // TEMP LOGIN (MVP): allow entry after email.
+        // We intentionally avoid showing errors here.
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        // Small delay for UX parity with a real network call.
+        try? await Task.sleep(nanoseconds: 250_000_000)
+
+        let token = UUID().uuidString
+        let user = User(
+            id: UUID().uuidString,
+            email: trimmed,
+            name: extractName(from: trimmed),
+            authProvider: .email
+        )
+
+        // Persist if possible; if not, still allow entry.
+        _ = KeychainHelper.shared.save(token, forKey: tokenKey)
+        saveUserData(user)
+        isAuthenticated = true
+        currentUser = user
+    }
+    
+    func verifyMagicLinkToken(_ token: String) async {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
         
-        // Simulate API call to send magic link
-        // In production, replace with actual API endpoint
-        try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s delay
-        
-        // For demo: automatically authenticate any email
-        let token = UUID().uuidString
-        let user = User(
-            id: UUID().uuidString,
-            email: email,
-            name: extractName(from: email),
-            authProvider: .email
-        )
-        
-        if KeychainHelper.shared.save(token, forKey: tokenKey) {
-            saveUserData(user)
-            isAuthenticated = true
-            currentUser = user
-        } else {
-            errorMessage = "Failed to save authentication token"
+        do {
+            let response = try await NetworkManager.shared.verifyMagicLink(token: token)
+            
+            let user = User(
+                id: response.user.id,
+                email: response.user.email,
+                name: response.user.name,
+                authProvider: .email
+            )
+            
+            if KeychainHelper.shared.save(response.token, forKey: tokenKey) {
+                saveUserData(user)
+                isAuthenticated = true
+                currentUser = user
+            } else {
+                errorMessage = "Failed to save authentication token"
+            }
+        } catch {
+            errorMessage = "Invalid or expired magic link"
         }
     }
     

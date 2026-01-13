@@ -8,7 +8,6 @@ struct DiscoverView: View {
     @State private var selectedTags: Set<String> = []
     @State private var sortOption: SortOption = .newest
     @State private var displayLimit: Int = 20
-    @Environment(\.dismiss) private var dismiss
     @State private var allTagsCache: [String] = []
 
     private let ignoredTags: Set<String> = ["ew-promoted-top", "ew-promoted-bottom", "#ew-promoted-top", "#ew-promoted-bottom"]
@@ -22,7 +21,7 @@ struct DiscoverView: View {
             }
         }
         // Sort by frequency (most used first), then alphabetically
-        return tagCounts.keys.sorted { lhs, rhs in
+        return tagCounts.keys.sorted { lhs, rhs in 
             let lCount = tagCounts[lhs] ?? 0
             let rCount = tagCounts[rhs] ?? 0
             if lCount != rCount {
@@ -337,11 +336,12 @@ struct DiscoverView: View {
                                     .padding(.horizontal)
                                     .padding(.top, 8)
                                 
-                                LazyVStack(spacing: 0) {
+                                LazyVStack(spacing: 16) {
                                     ForEach(filteredArticles, id: \.id) { article in
                                         NavigationLink(value: article) {
-                                            ArticleRowView(article: article)
+                                            SearchResultCard(article: article)
                                         }
+                                        .buttonStyle(.plain)
                                         .onAppear {
                                             if article.id == filteredArticles.last?.id {
                                                 Task {
@@ -371,11 +371,12 @@ struct DiscoverView: View {
                     Spacer()
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 0) {
+                        LazyVStack(spacing: 16) {
                             ForEach(filteredArticles, id: \.id) { article in
                                 NavigationLink(value: article) {
-                                    ArticleRowView(article: article)
+                                    SearchResultCard(article: article)
                                 }
+                                .buttonStyle(.plain)
                                 .onAppear {
                                     // Load more when near the end
                                     if article.id == filteredArticles.last?.id {
@@ -391,23 +392,12 @@ struct DiscoverView: View {
                                     .padding()
                             }
                         }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
                     }
                 }
             }
-            .navigationTitle("Discover")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .foregroundStyle(.primary)
-                    }
-                    .accessibilityLabel("Close")
-                    .accessibilityHint("Closes the discover screen")
-                }
-            }
             .onAppear {
                 // Compute tags from any cached articles immediately
                 recomputeAllTags()
@@ -462,6 +452,71 @@ struct TagChip: View {
                 isPressed = pressed
             }
         })
+    }
+}
+
+struct SearchResultCard: View {
+    let article: Article
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Thumbnail
+            if let imageURL = article.imageURL {
+                CachedAsyncImage(url: imageURL) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 100, height: 100)
+                        .clipped()
+                        .cornerRadius(12)
+                } placeholder: {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.15))
+                        ProgressView()
+                    }
+                    .frame(width: 100, height: 100)
+                }
+            }
+            
+            // Content
+            VStack(alignment: .leading, spacing: 8) {
+                Text(article.title)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.primary)
+                    .lineLimit(3)
+                
+                Spacer()
+                
+                HStack(spacing: 8) {
+                    if let author = article.author {
+                        Text(author)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    if let author = article.author {
+                        Text("•")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Text(article.publishedAt.formatted(date: .abbreviated, time: .omitted))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(height: 100)
+        .padding(12)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+        )
     }
 }
 

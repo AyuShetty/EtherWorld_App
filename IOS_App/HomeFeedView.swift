@@ -4,8 +4,6 @@ import Combine
 // MARK: - Supporting Views
 
 struct FeedHeaderView: View {
-    let onSettingsTap: () -> Void
-    
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
@@ -19,12 +17,6 @@ struct FeedHeaderView: View {
             }
             
             Spacer()
-            
-            Button(action: onSettingsTap) {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 20))
-                    .foregroundColor(.primary)
-            }
         }
         .padding(.horizontal)
         .padding(.bottom, 8)
@@ -276,8 +268,6 @@ struct LoadingFeedView: View {
 struct HomeFeedView: View {
     @EnvironmentObject var viewModel: ArticleViewModel
     @StateObject private var notificationManager = NotificationManager.shared
-    @State private var showingDiscover = false
-    @State private var showingSettings = false
     @State private var navigationPath = NavigationPath()
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
     
@@ -285,23 +275,6 @@ struct HomeFeedView: View {
         NavigationStack(path: $navigationPath) {
             contentView
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button {
-                            showingDiscover = true
-                        } label: {
-                            Image(systemName: "magnifyingglass")
-                        }
-                        .accessibilityLabel("Discover")
-                        .accessibilityHint("Opens the discover screen to search and filter articles")
-                    }
-                }
-                .sheet(isPresented: $showingDiscover) {
-                    DiscoverView()
-                }
-                .sheet(isPresented: $showingSettings) {
-                    SettingsView()
-                }
                 .task {
                     if notificationsEnabled {
                         NotificationManager.shared.checkForNewArticles(articles: viewModel.articles)
@@ -336,7 +309,7 @@ struct HomeFeedView: View {
     private var feedContentView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                FeedHeaderView(onSettingsTap: { showingSettings = true })
+                FeedHeaderView()
                 
                 // Horizontal scrolling hero section
                 if !viewModel.articles.isEmpty {

@@ -139,6 +139,7 @@ struct LoginView: View {
                     Button {
                         isEmailFocused = false
                         Task {
+                            authManager.errorMessage = nil
                             await authManager.sendMagicLink(email: email)
                             if authManager.isAuthenticated {
                                 showSuccess()

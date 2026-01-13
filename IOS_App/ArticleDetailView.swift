@@ -173,6 +173,7 @@ struct ArticleDetailView: View {
                 isRead = article.isRead
                 // Mark as read when user opens the article
                 viewModel.markAsRead(article: article)
+                AnalyticsManager.shared.log(.articleOpen, params: ["id": article.id])
             }
             .task {
                 await detailVM.loadContentIfNeeded(service: viewModel.articleService)

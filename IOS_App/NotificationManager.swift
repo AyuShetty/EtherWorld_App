@@ -19,6 +19,14 @@ class NotificationManager: NSObject, ObservableObject {
         UNUserNotificationCenter.current().delegate = self
         checkAuthorizationStatus()
     }
+
+    // Preferences
+    private var selectedTags: [String] {
+        get { UserDefaults.standard.stringArray(forKey: "notificationTags") ?? [] }
+        set { UserDefaults.standard.set(newValue, forKey: "notificationTags") }
+    }
+    private var quietStartHour: Int { UserDefaults.standard.integer(forKey: "quietStartHour") }
+    private var quietEndHour: Int { UserDefaults.standard.integer(forKey: "quietEndHour") }
     
     func checkAuthorizationStatus() {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
@@ -43,6 +51,9 @@ class NotificationManager: NSObject, ObservableObject {
     func checkForNewArticles(articles: [Article]) {
         guard isAuthorized else { return }
         guard let latestArticle = articles.first else { return }
+
+        // Respect quiet hours
+        if isWithinQuietHours(Date()) { return }
         
         // If this is first run, just store the ID
         if lastArticleId.isEmpty {
@@ -52,9 +63,36 @@ class NotificationManager: NSObject, ObservableObject {
         
         // Check if there's a new article
         if latestArticle.id != lastArticleId {
-            sendNewArticleNotification(article: latestArticle)
-            lastArticleId = latestArticle.id
+            if articleMatchesPreferences(latestArticle) {
+                sendNewArticleNotification(article: latestArticle)
+                lastArticleId = latestArticle.id
+            } else {
+                // Even if topic filtered out, advance last seen to avoid repeat
+                lastArticleId = latestArticle.id
+            }
         }
+    }
+
+    private func isWithinQuietHours(_ date: Date) -> Bool {
+        let hour = Calendar.current.component(.hour, from: date)
+        if quietStartHour == quietEndHour { return false }
+        if quietStartHour < quietEndHour {
+            // e.g., 22 -> 7 is invalid in this branch
+            return hour >= quietStartHour && hour < quietEndHour
+        } else {
+            // Wrap around midnight, e.g., 23 -> 7
+            return hour >= quietStartHour || hour < quietEndHour
+        }
+    }
+
+    private func articleMatchesPreferences(_ article: Article) -> Bool {
+        let prefs = Set(selectedTags)
+        if prefs.isEmpty { return true }
+        let normalized = article.tags.map { t -> String in
+            let n = t.lowercased().trimmingCharacters(in: .whitespaces)
+            return n.hasPrefix("#") ? String(n.dropFirst()) : n
+        }
+        return normalized.contains(where: { prefs.contains($0) })
     }
     
     func sendNewArticleNotification(article: Article) {

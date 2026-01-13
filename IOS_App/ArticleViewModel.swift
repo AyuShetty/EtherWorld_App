@@ -56,6 +56,7 @@ final class ArticleViewModel: ObservableObject {
             if result.count < pageSize {
                 hasMoreArticles = false
             }
+            SpotlightIndexer.index(articles: self.articles)
         } catch {
             self.errorMessage = "Failed to load articles. Please try again."
         }
@@ -88,6 +89,7 @@ final class ArticleViewModel: ObservableObject {
                     hasMoreArticles = false
                 }
             }
+            SpotlightIndexer.index(articles: self.articles)
         } catch {
             currentPage -= 1 // Revert on error
             errorMessage = "Failed to load more articles."

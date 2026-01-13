@@ -13,6 +13,12 @@ import BackgroundTasks
 struct IOS_AppApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var authManager = AuthenticationManager()
+    @AppStorage("appTheme") private var appThemeRaw: String = AppTheme.system.rawValue
+    @AppStorage("darkModeEnabled") private var legacyDarkModeEnabled: Bool = false
+
+    private var resolvedTheme: AppTheme {
+        AppTheme(rawValue: appThemeRaw) ?? AppTheme.fromUserDefaults()
+    }
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -28,6 +34,18 @@ struct IOS_AppApp: App {
     }()
 
     init() {
+        // One-time migration:
+        // - If a user previously had only the legacy `darkModeEnabled` setting, preserve it.
+        // - If neither exists (fresh install), default to system.
+        let defaults = UserDefaults.standard
+        if defaults.object(forKey: "appTheme") == nil {
+            if defaults.object(forKey: "darkModeEnabled") != nil {
+                appThemeRaw = (legacyDarkModeEnabled ? AppTheme.dark : AppTheme.light).rawValue
+            } else {
+                appThemeRaw = AppTheme.system.rawValue
+            }
+        }
+
         // Register background refresh task
         BGTaskScheduler.shared.register(forTaskWithIdentifier: BackgroundRefreshManager.taskIdentifier, using: nil) { task in
             guard let refreshTask = task as? BGAppRefreshTask else {
@@ -40,12 +58,20 @@ struct IOS_AppApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if authManager.isAuthenticated {
-                ContentView()
-                    .environmentObject(authManager)
-            } else {
-                LoginView()
-                    .environmentObject(authManager)
+            Group {
+                if authManager.isAuthenticated {
+                    AdaptiveContentView()
+                        .environmentObject(authManager)
+                } else {
+                    LoginView()
+                        .environmentObject(authManager)
+                }
+            }
+            .preferredColorScheme(resolvedTheme.preferredColorScheme)
+            .onChange(of: appThemeRaw) { _, newValue in
+                // Keep legacy key consistent for any existing code paths.
+                let resolved = AppTheme(rawValue: newValue) ?? .system
+                legacyDarkModeEnabled = (resolved == .dark)
             }
         }
         .modelContainer(sharedModelContainer)
@@ -53,6 +79,7 @@ struct IOS_AppApp: App {
             if newPhase == .active {
                 // Schedule next refresh when app becomes active
                 BackgroundRefreshManager.scheduleNextRefresh(hoursFromNow: 6)
+                AnalyticsManager.shared.log(.appOpen)
             }
         }
         .backgroundTask(.appRefresh(BackgroundRefreshManager.taskIdentifier)) {

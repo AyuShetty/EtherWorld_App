@@ -5,12 +5,23 @@ struct SettingsView: View {
     @StateObject private var notificationManager = NotificationManager.shared
     @EnvironmentObject var authManager: AuthenticationManager
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
-    @AppStorage("darkModeEnabled") private var darkModeEnabled = false
+    @AppStorage("quietStartHour") private var quietStartHour: Int = 23
+    @AppStorage("quietEndHour") private var quietEndHour: Int = 7
+    @AppStorage("appTheme") private var appThemeRaw: String = AppTheme.system.rawValue
     @AppStorage("analyticsEnabled") private var analyticsEnabled = false
     @AppStorage("newsletterOptIn") private var newsletterOptIn = false
     @State private var showingPrivacyPolicy = false
     @State private var showingLogoutConfirmation = false
     @Environment(\.dismiss) private var dismiss
+
+    private var themeBinding: Binding<AppTheme> {
+        Binding(
+            get: { AppTheme(rawValue: appThemeRaw) ?? .system },
+            set: { newValue in
+                appThemeRaw = newValue.rawValue
+            }
+        )
+    }
     
     var body: some View {
         NavigationStack {
@@ -40,25 +51,54 @@ struct SettingsView: View {
                                 }
                             }
                             HapticFeedback.light()
+                        } else {
+                            notificationManager.cancelAllNotifications()
                         }
                     }
+
+                    NavigationLink {
+                        NotificationPreferencesView()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "slider.horizontal.3")
+                                .foregroundStyle(.blue)
+                                .frame(width: 28)
+                                .font(.system(size: 16))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Notification Preferences")
+                                    .fontWeight(.medium)
+                                Text("Topics and quiet hours")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                    .disabled(!notificationsEnabled)
                 } header: {
                     Text("Notifications")
                 }
                 
                 // Appearance Section
                 Section {
-                    Toggle(isOn: $darkModeEnabled) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "moon.fill")
-                                .foregroundStyle(.purple)
-                                .frame(width: 28)
-                                .font(.system(size: 16))
-                            Text("Dark Mode")
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label {
+                            Text("Theme")
                                 .fontWeight(.medium)
+                        } icon: {
+                            Image(systemName: "circle.lefthalf.filled")
+                                .symbolRenderingMode(.hierarchical)
+                                .foregroundStyle(.tint)
                         }
+
+                        ThemeSelectionCardsView(selection: themeBinding)
                     }
-                    .onChange(of: darkModeEnabled) { _, _ in
+                    .padding(.vertical, 6)
+                    .onChange(of: appThemeRaw) { _, _ in
                         HapticFeedback.light()
                     }
                 } header: {
@@ -210,22 +250,8 @@ struct SettingsView: View {
                     Text("Account")
                 }
                 
-                // Cache Section
-                Section {
-                    Button {
-                        clearCache()
-                    } label: {
-                        HStack {
-                            Image(systemName: "trash.fill")
-                                .foregroundStyle(.red)
-                                .frame(width: 28)
-                            Text("Clear Cache")
-                                .foregroundStyle(.red)
-                        }
-                    }
-                } header: {
-                    Text("Storage")
-                }
+                // Offline & Cache Section
+                OfflineControlsSection()
 
                 // Developer Section (Debug Tools)
                 Section {
