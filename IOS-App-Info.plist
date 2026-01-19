@@ -30,7 +30,12 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>
-	<dict/>
+	<dict>
+		<key>UIImageName</key>
+		<string>Logo</string>
+		<key>UIImageRespectsSafeAreaInsets</key>
+		<true/>
+	</dict>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>armv7</string>
@@ -68,13 +73,5 @@
 			</array>
 		</dict>
 	</array>
-	<key>GhostAPIKey</key>
-	<string>$(GHOST_API_KEY)</string>
-	<key>GhostBaseURL</key>
-	<string>$(GHOST_BASE_URL)</string>
-	<key>SupabaseURL</key>
-	<string>$(SUPABASE_URL)</string>
-	<key>SupabaseAnonKey</key>
-	<string>$(SUPABASE_ANON_KEY)</string>
 </dict>
 </plist>
