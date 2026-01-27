@@ -5,6 +5,8 @@
 
 // Default Values (if Secrets.xcconfig is missing)
 GHOST_API_KEY = 5b9aefe2ea7623b8fd81c52dec
-GHOST_BASE_URL = https:/$()/etherworld.co
-SUPABASE_URL = https:/$()/enlobybupevetrtfzomu.supabase.co
-SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVubG9ieWJ1cGV2ZXRydGZ6b211Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NzI3NDUsImV4cCI6MjA4NDA0ODc0NX0.5lZCR_WygSfcdS3TjZcQcqiETtorvK6ZWLpbT4O_zAA
+GHOST_BASE_URL = https://etherworld.co
+
+// Intentionally blank defaults (provide via Secrets.xcconfig, CI, or per-user build settings)
+SUPABASE_URL =
+SUPABASE_ANON_KEY =
